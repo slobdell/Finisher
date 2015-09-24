@@ -28,10 +28,10 @@ class TestAutoCompleter(unittest.TestCase):
                     RedisStorageSpellChecker):
             cls(redis_client).bust_cache()
 
-    def test_build_tokens_from_input_token_to_full_string(self):
+    def test_train_from_strings_token_to_full_string(self):
         """ Verifies that input training set is lowercased
         and divied up into N grams that map to tokens. """
-        DictStorageTokenizer(process_cache).build_tokens_from_input([
+        DictStorageTokenizer(process_cache).train_from_strings([
             "hey there world",
             "hello Commrades",
             "hello world",
@@ -44,9 +44,9 @@ class TestAutoCompleter(unittest.TestCase):
             set(['hey there world', 'hello commrades', 'hello world'])
         )
 
-    def test_build_tokens_from_input_n_gram_to_tokens(self):
+    def test_train_from_strings_n_gram_to_tokens(self):
         """ Verifies that n grams map to tokens. """
-        DictStorageTokenizer(process_cache).build_tokens_from_input([
+        DictStorageTokenizer(process_cache).train_from_strings([
             "hey there world",
             "hello Commrades",
             "hello world",
@@ -61,7 +61,7 @@ class TestAutoCompleter(unittest.TestCase):
 
     def test_bust_cache(self):
         """ Verifies that the state of the class can be reset. """
-        DictStorageTokenizer(process_cache).build_tokens_from_input([
+        DictStorageTokenizer(process_cache).train_from_strings([
             "hey there world",
             "hello Commrades",
             "hello world",
@@ -77,7 +77,7 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "hello world",
         ]
-        DictStorageTokenizer(process_cache).build_tokens_from_input(word_list)
+        DictStorageTokenizer(process_cache).train_from_strings(word_list)
         DictStorageSpellChecker(process_cache).train_from_strings(word_list)
 
         corrected_tokens = DictStorageSpellChecker(process_cache).correct_phrase("hye wrld")
@@ -96,7 +96,7 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "today is a tremendous day",
         ]
-        DictStorageTokenizer(process_cache).build_tokens_from_input(word_list)
+        DictStorageTokenizer(process_cache).train_from_strings(word_list)
         guessed_phrases = DictStorageAutoCompleter(process_cache).guess_full_strings(["hello", "world"])
         self.assertEqual(
             guessed_phrases,
@@ -113,7 +113,7 @@ class TestAutoCompleter(unittest.TestCase):
             "this will be repeated hardcore",
             "this will be repeated really hardcore",
         ]
-        DictStorageTokenizer(process_cache).build_tokens_from_input(word_list)
+        DictStorageTokenizer(process_cache).train_from_strings(word_list)
         guessed_phrases = DictStorageAutoCompleter(process_cache).guess_full_strings(
             ["this", "will", "be", "repeated", "hardcore"]
         )
@@ -128,7 +128,7 @@ class TestAutoCompleter(unittest.TestCase):
 
     def test_redis_tokenizer(self):
         """ Verifies that Redis storage maintains existing logic. """
-        RedisStorageTokenizer(redis_client).build_tokens_from_input([
+        RedisStorageTokenizer(redis_client).train_from_strings([
             "hey there world",
             "hello Commrades",
             "hello world",
@@ -143,7 +143,7 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "hello world",
         ]
-        RedisStorageTokenizer(redis_client).build_tokens_from_input(word_list)
+        RedisStorageTokenizer(redis_client).train_from_strings(word_list)
         RedisStorageSpellChecker(redis_client).train_from_strings(word_list)
 
         corrected_tokens = RedisStorageSpellChecker(redis_client).correct_phrase("hye wrld")
@@ -156,7 +156,7 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "today is a tremendous day",
         ]
-        RedisStorageTokenizer(redis_client).build_tokens_from_input(word_list)
+        RedisStorageTokenizer(redis_client).train_from_strings(word_list)
         guessed_phrases = RedisStorageAutoCompleter(redis_client).guess_full_strings(["hello", "world"])
         self.assertEqual(
             guessed_phrases,
@@ -170,7 +170,7 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "hello world",
         ]
-        RedisStorageTokenizer(redis_client).build_tokens_from_input(word_list)
+        RedisStorageTokenizer(redis_client).train_from_strings(word_list)
         RedisStorageSpellChecker(redis_client).train_from_strings(word_list)
         corrected_tokens = RedisStorageSpellChecker(redis_client).correct_phrase("hye wrld")
         guessed_phrases = RedisStorageAutoCompleter(redis_client).guess_full_strings(corrected_tokens)
@@ -191,7 +191,7 @@ class TestAutoCompleter(unittest.TestCase):
         word_list = [
             "I have 99 problems",
         ]
-        RedisStorageTokenizer(redis_client).build_tokens_from_input(word_list)
+        RedisStorageTokenizer(redis_client).train_from_strings(word_list)
         RedisStorageSpellChecker(redis_client).train_from_strings(word_list)
         token_to_count = RedisStorageSpellChecker(redis_client).token_to_count
         self.assertEqual(
