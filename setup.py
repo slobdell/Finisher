@@ -18,7 +18,7 @@ def requirements(filename='requirements.txt'):
 setup(
     name='finisher',
     version="1.0.0",
-    url='https://github.com/slobdell/one_rep_max',
+    url='https://github.com/slobdell/Finisher',
     author="Scott Lobdell",
     author_email="scott.lobdell@gmail.com",
     description=("Autocomplete package to train a model and return best results from input tokens"),
