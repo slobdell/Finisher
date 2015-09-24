@@ -11,11 +11,18 @@ class RequiresTraining(Exception):
     pass
 
 
-class AbstractTokenizer(object):
+class BaseObject(object):
+    def __init__(self, *args, **kwargs):
+        super(BaseObject, self).__init__()
+
+
+class AbstractTokenizer(BaseObject):
 
     __metaclass__ = ABCMeta
 
-    MIN_N_GRAM_SIZE = 1
+    def __init__(self, min_n_gram_size=1, **extras):
+        self.min_n_gram_size = min_n_gram_size
+        super(AbstractTokenizer, self).__init__(**extras)
 
     @abstractmethod
     def _retrieve_token_to_full_string(self):
@@ -65,9 +72,9 @@ class AbstractTokenizer(object):
             tokens = alpha_numeric_input_string.split()
             for token in tokens:
                 token_to_full_string[token].add(input_string.lower())
-                if len(token) < self.MIN_N_GRAM_SIZE:
+                if len(token) < self.min_n_gram_size:
                     n_gram_to_tokens[token].add(token)
-                for string_size in xrange(self.MIN_N_GRAM_SIZE, len(token) + 1):
+                for string_size in xrange(self.min_n_gram_size, len(token) + 1):
                     n_gram = token[:string_size]
                     n_gram_to_tokens[n_gram].add(token)
 
@@ -79,8 +86,9 @@ class AbstractSpellChecker(AbstractTokenizer):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, typo_deviations=2):
+    def __init__(self, typo_deviations=2, **extras):
         self.typo_deviations = typo_deviations
+        super(AbstractSpellChecker, self).__init__(*extras)
 
     def _to_alpha_words_list(self, text):
         return re.findall('[a-z]+', text.lower())
@@ -232,8 +240,9 @@ class AbstractAutoCompleter(AbstractSpellChecker):
 
 class DictStorageTokenizer(AbstractTokenizer):
 
-    def __init__(self, dict_obj):
+    def __init__(self, dict_obj, **extras):
         self._cls_cache = dict_obj
+        super(DictStorageTokenizer, self).__init__(**extras)
 
     def _retrieve_token_to_full_string(self):
         key = "token_to_full_string"
@@ -286,8 +295,8 @@ class DictStorageAutoCompleter(DictStorageSpellChecker, AbstractAutoCompleter):
 
 class RedisStorageTokenizer(AbstractTokenizer):
 
-    def __init__(self, redis_client, *args, **kwargs):
-        super(RedisStorageTokenizer, self).__init__(*args, **kwargs)
+    def __init__(self, redis_client, **extras):
+        super(RedisStorageTokenizer, self).__init__(**extras)
         self.redis_client = redis_client
 
     def _retrieve_token_to_full_string(self):
