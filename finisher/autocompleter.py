@@ -236,7 +236,7 @@ class DictStorageTokenizer(AbstractTokenizer):
         try:
             return self._cls_cache[key]
         except KeyError:
-            raise RequiresTraining("Must call build_token_from_input() before using this property")
+            raise RequiresTraining("Must call build_tokens_from_input() before using this property")
 
     def _store_token_to_full_string(self, token_to_full_string_dict):
         self._cls_cache["token_to_full_string"] = token_to_full_string_dict
@@ -246,7 +246,7 @@ class DictStorageTokenizer(AbstractTokenizer):
         try:
             return self._cls_cache[key]
         except KeyError:
-            raise RequiresTraining("Must call build_token_from_input() before using this property")
+            raise RequiresTraining("Must call build_tokens_from_input() before using this property")
 
     def _store_n_gram_to_tokens(self, n_gram_to_tokens_dict):
         self._cls_cache["n_gram_to_tokens"] = n_gram_to_tokens_dict
@@ -290,7 +290,7 @@ class RedisStorageTokenizer(AbstractTokenizer):
         token_to_full_string = {}
         keys = self.redis_client.smembers("token_to_full_string_keys")
         if not keys:
-            raise RequiresTraining("Must call build_token_from_input() before using this property")
+            raise RequiresTraining("Must call build_tokens_from_input() before using this property")
         for key in keys:
             full_strings = self.redis_client.smembers("token:" + key)
             token_to_full_string[key] = full_strings
@@ -307,7 +307,7 @@ class RedisStorageTokenizer(AbstractTokenizer):
         n_gram_to_tokens = {}
         n_grams = self.redis_client.smembers("n_gram_to_token_key")
         if not n_grams:
-            raise RequiresTraining("Must call build_token_from_input() before using this property")
+            raise RequiresTraining("Must call build_tokens_from_input() before using this property")
         for n_gram in n_grams:
             tokens = self.redis_client.smembers("n_gram:" + n_gram)
             n_gram_to_tokens[n_gram] = tokens
