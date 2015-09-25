@@ -17,13 +17,13 @@ def requirements(filename='requirements.txt'):
 
 setup(
     name='finisher',
-    version="1.0.0",
+    version="0.1.0",
     url='https://github.com/slobdell/Finisher',
     author="Scott Lobdell",
     author_email="scott.lobdell@gmail.com",
     description=("Autocomplete package to train a model and return best results from input tokens"),
     long_description=("Autocomplete package to train a model and return best results from input tokens"),
-    keywords="one_rep_maxpython autocomplete spellcheck",
+    keywords="python autocomplete spellcheck",
     license="MIT",
     packages=find_packages(exclude=[]),
     include_package_data=True,
