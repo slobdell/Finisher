@@ -364,7 +364,7 @@ class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
     def _store_token_to_count(self, token_to_count_dict):
         for token, count in token_to_count_dict.iteritems():
             count_key = "count:" + token
-            current_value = self.redis_client.get(count_key) or 0
+            current_value = int(self.redis_client.get(count_key) or 0)
             self.redis_client.set(count_key, current_value + count)
             self.redis_client.sadd("token_to_count_key", token)
 
