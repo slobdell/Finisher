@@ -200,3 +200,43 @@ class TestAutoCompleter(unittest.TestCase):
         )
         corrected_tokens = RedisStorageSpellChecker(redis_client).correct_phrase("I have 99 problems")
         self.assertEqual(corrected_tokens, ['i', 'have', '99', 'problems'])
+
+    def test_train_multiple(self):
+        """ Verifies that training updates a model rather than re-trains it. """
+        word_list = [
+            "octopus",
+        ]
+        DictStorageAutoCompleter(process_cache).train_from_strings(word_list)
+
+        word_list = [
+            "rabbit",
+        ]
+        DictStorageAutoCompleter(process_cache).train_from_strings(word_list)
+
+        corrected_tokens = DictStorageAutoCompleter(process_cache).correct_phrase("octipus rbbit")
+        self.assertEqual(corrected_tokens, ["octopus", "rabbit"])
+
+        guessed_phrases = DictStorageAutoCompleter(
+            process_cache
+        ).guess_full_strings(corrected_tokens)
+        self.assertEqual(guessed_phrases, ['octopus', 'rabbit'])
+
+    def test_train_multiple_redis(self):
+        """ Verifies that training updates a model rather than re-trains it. """
+        word_list = [
+            "octopus",
+        ]
+        RedisStorageAutoCompleter(redis_client).train_from_strings(word_list)
+
+        word_list = [
+            "rabbit",
+        ]
+        RedisStorageAutoCompleter(redis_client).train_from_strings(word_list)
+
+        corrected_tokens = RedisStorageAutoCompleter(redis_client).correct_phrase("octipus rbbit")
+        self.assertEqual(corrected_tokens, ["octopus", "rabbit"])
+
+        guessed_phrases = RedisStorageAutoCompleter(
+            redis_client
+        ).guess_full_strings(corrected_tokens)
+        self.assertEqual(guessed_phrases, ['octopus', 'rabbit'])
