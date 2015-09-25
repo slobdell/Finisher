@@ -92,6 +92,10 @@ class AbstractSpellChecker(AbstractTokenizer):
         pass
 
     @abstractmethod
+    def get_counts_for_tokens(self, token_list, default_empty=0):
+        pass
+
+    @abstractmethod
     def _store_token_to_count(self):
         pass
 
@@ -121,7 +125,8 @@ class AbstractSpellChecker(AbstractTokenizer):
             deviations = \
                 {item for deviation in deviations for item in self._possible_typos(deviation)}
             all_deviations |= deviations
-        return {deviation for deviation in all_deviations if self.get_count_for_token(deviation)}
+        deviation_to_count = self.get_counts_for_tokens(all_deviations)
+        return {deviation for deviation in all_deviations if deviation_to_count[deviation]}
 
     def _words_that_exist(self, words):
         return set(w for w in words if self.get_count_for_token(w))
@@ -348,6 +353,24 @@ class RedisStorageTokenizer(AbstractTokenizer):
 
 
 class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
+
+    def get_counts_for_tokens(self, token_list, default_empty=0):
+        try:
+            int(default_empty)
+        except TypeError:
+            raise TypeError("default_empty must be an int")
+
+        key_count = self.redis_client.scard("token_to_count_key")
+        if not key_count:
+            raise RequiresTraining("Must call train_from_strings() before using this property")
+        listified_tokens = [token for token in token_list]
+        keys = ["count:%s" % token for token in listified_tokens]
+        values = self.redis_client.mget(keys)
+        token_to_count = {}
+        for index, token in enumerate(listified_tokens):
+            redis_value = int(values[index] or 0)
+            token_to_count[token] = redis_value
+        return token_to_count
 
     def get_count_for_token(self, token, default_empty=0):
         try:
