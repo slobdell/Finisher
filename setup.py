@@ -2,19 +2,6 @@
 from setuptools import setup, find_packages
 
 
-def requirements(filename='requirements.txt'):
-    """Returns a list of requirements to install."""
-    requires = []
-
-    with open(filename, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                # skip blank lines and comments
-                continue
-            requires.append(line)
-    return requires
-
 setup(
     name='finisher',
     version="0.1.0",
@@ -27,7 +14,7 @@ setup(
     license="MIT",
     packages=find_packages(exclude=[]),
     include_package_data=True,
-    install_requires=requirements(),
+    install_requires=[],
     extras_require={},
     classifiers=[
         'Programming Language :: Python :: 2.7',
