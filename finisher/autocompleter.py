@@ -209,7 +209,7 @@ class AbstractAutoCompleter(AbstractSpellChecker):
         possibles_within_thresh = \
             [tuple_obj for tuple_obj in full_string__scores if tuple_obj[1] >= self.score_threshold]
         if len(possibles_within_thresh) > self.min_results:
-            min_possibles = possibles_within_thresh
+            min_possibles = possibles_within_thresh[:self.max_results]
         else:
             min_possibles = max_possibles[:self.min_results]
         return [tuple_obj[0] for tuple_obj in min_possibles]
