@@ -36,13 +36,8 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "hello world",
         ])
-        token_to_full_string = DictStorageTokenizer(process_cache).token_to_full_string
-        self.assertEqual(len(token_to_full_string), 5)
-        mapped_strings = set.union(*token_to_full_string.values())
-        self.assertEqual(
-            mapped_strings,
-            set(['hey there world', 'hello commrades', 'hello world'])
-        )
+        strings_for_hello = DictStorageTokenizer(process_cache).get_full_strings_for_token("hello")
+        self.assertEqual(strings_for_hello, set(['hello commrades', 'hello world']))
 
     def test_train_from_strings_n_gram_to_tokens(self):
         """ Verifies that n grams map to tokens. """
@@ -51,13 +46,8 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "hello world",
         ])
-        n_gram_to_tokens = DictStorageTokenizer(process_cache).n_gram_to_tokens
-        self.assertEqual(len(n_gram_to_tokens), 25)
-        mapped_values = set.union(*n_gram_to_tokens.values())
-        self.assertEqual(
-            mapped_values,
-            set(['commrades', 'world', 'there', 'hello', 'hey'])
-        )
+        tokens_for_h = DictStorageTokenizer(process_cache).get_tokens_for_n_gram("h")
+        self.assertEqual(tokens_for_h, set(['hey', 'hello']))
 
     def test_bust_cache(self):
         """ Verifies that the state of the class can be reset. """
@@ -68,7 +58,7 @@ class TestAutoCompleter(unittest.TestCase):
         ])
         DictStorageTokenizer(process_cache).bust_cache()
         with self.assertRaises(RequiresTraining):
-            DictStorageTokenizer(process_cache).n_gram_to_tokens
+            DictStorageTokenizer(process_cache).get_tokens_for_n_gram("g")
 
     def test_spell_check(self):
         """ Verifies that spell check works. """
@@ -133,8 +123,8 @@ class TestAutoCompleter(unittest.TestCase):
             "hello Commrades",
             "hello world",
         ])
-        token_to_full_string = RedisStorageTokenizer(redis_client).token_to_full_string
-        self.assertEqual(len(token_to_full_string), 5)
+        strings_for_hello = RedisStorageTokenizer(redis_client).get_full_strings_for_token("hello")
+        self.assertEqual(strings_for_hello, set(['hello commrades', 'hello world']))
 
     def test_redis_spellchecker(self):
         """ Verifies that Redis storage maintains existing logic. """
@@ -193,10 +183,10 @@ class TestAutoCompleter(unittest.TestCase):
         ]
         RedisStorageTokenizer(redis_client).train_from_strings(word_list)
         RedisStorageSpellChecker(redis_client).train_from_strings(word_list)
-        token_to_count = RedisStorageSpellChecker(redis_client).token_to_count
+        problems_count = RedisStorageSpellChecker(redis_client).get_count_for_token("problems")
         self.assertEqual(
-            token_to_count,
-            {'i': '1', 'problems': '1', 'have': '1'}
+            problems_count,
+            1
         )
         corrected_tokens = RedisStorageSpellChecker(redis_client).correct_phrase("I have 99 problems")
         self.assertEqual(corrected_tokens, ['i', 'have', '99', 'problems'])

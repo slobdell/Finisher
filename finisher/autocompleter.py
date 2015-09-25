@@ -3,8 +3,6 @@ from abc import abstractmethod
 from collections import Counter, defaultdict
 import re
 
-from cached_property import cached_property
-
 
 class RequiresTraining(Exception):
     """ Raised when training is required. """
@@ -25,15 +23,7 @@ class AbstractTokenizer(BaseObject):
         super(AbstractTokenizer, self).__init__(**extras)
 
     @abstractmethod
-    def _retrieve_token_to_full_string(self):
-        pass
-
-    @abstractmethod
     def _store_token_to_full_string(self, token_to_full_string_dict):
-        pass
-
-    @abstractmethod
-    def _retrieve_n_gram_to_tokens(self):
         pass
 
     @abstractmethod
@@ -44,18 +34,13 @@ class AbstractTokenizer(BaseObject):
     def _clear_tokenizer_storage(self):
         pass
 
-    @cached_property
-    def token_to_full_string(self):
-        # get() IS THE ONLY THING CALLED ON THIS
-        return self._retrieve_token_to_full_string()
+    @abstractmethod
+    def get_full_strings_for_token(self, token, default_empty=None):
+        pass
 
-    @cached_property
-    def n_gram_to_tokens(self):
-        """ Returns a dict of n grams to all existing tokens from trained input.
-        The tokens are subsequently mapped to the eventual trained phrases. """
-        # in IS CALLED
-        # get() IS CALLED
-        return self._retrieve_n_gram_to_tokens()
+    @abstractmethod
+    def get_tokens_for_n_gram(self, n_gram, default_empty=None):
+        pass
 
     def bust_cache(self):
         """ Clears all cached values. """
@@ -103,7 +88,7 @@ class AbstractSpellChecker(AbstractTokenizer):
         return model
 
     @abstractmethod
-    def _retrieve_token_to_count(self):
+    def get_count_for_token(self, token, default_empty=0):
         pass
 
     @abstractmethod
@@ -113,13 +98,6 @@ class AbstractSpellChecker(AbstractTokenizer):
     @abstractmethod
     def _clear_spellcheck_storage(self):
         pass
-
-    @cached_property
-    def token_to_count(self):
-        """ Returns a dictionary of all tokens to the count of their occurrences in
-        all input words. """
-        # get() is the only thing called
-        return self._retrieve_token_to_count()
 
     def bust_cache(self):
         """ Clears the cache so that model can be re-trained. """
@@ -143,10 +121,10 @@ class AbstractSpellChecker(AbstractTokenizer):
             deviations = \
                 {item for deviation in deviations for item in self._possible_typos(deviation)}
             all_deviations |= deviations
-        return {deviation for deviation in all_deviations if deviation in self.token_to_count}
+        return {deviation for deviation in all_deviations if self.get_count_for_token(deviation)}
 
     def _words_that_exist(self, words):
-        return set(w for w in words if w in self.token_to_count)
+        return set(w for w in words if self.get_count_for_token(w))
 
     def train_from_strings(self, input_string_list):
         """ Mutates the class such that input text from the user can be
@@ -163,13 +141,13 @@ class AbstractSpellChecker(AbstractTokenizer):
     def correct_token(self, token):
         """ Given an input token, returns a valid token present in the trained model. """
         token = token.lower()
-        if self.n_gram_to_tokens.get(token) is not None:
+        if self.get_tokens_for_n_gram(token) is not None:
             return token
         candidates = (self._words_that_exist([token]) or
                       self._words_that_exist(self._possible_typos(token)) or
                       self._extended_typos(token) or
                       [token])
-        return max(candidates, key=self.token_to_count.get)
+        return max(candidates, key=self.get_count_for_token)
 
     def correct_phrase(self, text):
         """ Given an input blob of text, returns a list of valid tokens that can be used
@@ -190,17 +168,15 @@ class AbstractAutoCompleter(AbstractSpellChecker):
 
     def _get_real_tokens_from_possible_n_grams(self, tokens):
         real_tokens = set()
-        n_gram_to_tokens = self.n_gram_to_tokens
         for token in tokens:
-            token_set = n_gram_to_tokens.get(token, set())
+            token_set = self.get_tokens_for_n_gram(token, set())
             real_tokens |= token_set
         return real_tokens
 
     def _get_scored_strings_uncollapsed(self, real_tokens):
         full_string__scores = []
-        token_to_full_string = self.token_to_full_string
         for token in real_tokens:
-            possible_full_strings = token_to_full_string.get(token, set())
+            possible_full_strings = self.get_full_strings_for_token(token, set())
             for full_string in possible_full_strings:
                 score = float(len(token)) / len(full_string.replace(" ", ""))
                 full_string__scores.append((full_string, score))
@@ -250,10 +226,10 @@ class DictStorageTokenizer(AbstractTokenizer):
         self._cls_cache = dict_obj
         super(DictStorageTokenizer, self).__init__(**extras)
 
-    def _retrieve_token_to_full_string(self):
-        key = "token_to_full_string"
+    def get_full_strings_for_token(self, token, default_empty=None):
+        attr_key = "token_to_full_string"
         try:
-            return self._cls_cache[key]
+            return self._cls_cache[attr_key].get(token, default_empty)
         except KeyError:
             raise RequiresTraining("Must call train_from_strings() before using this property")
 
@@ -268,10 +244,10 @@ class DictStorageTokenizer(AbstractTokenizer):
                 except KeyError:
                     self._cls_cache[attr_key][token] = full_string_set
 
-    def _retrieve_n_gram_to_tokens(self):
-        key = "n_gram_to_tokens"
+    def get_tokens_for_n_gram(self, n_gram, default_empty=None):
+        attr_key = "n_gram_to_tokens"
         try:
-            return self._cls_cache[key]
+            return self._cls_cache[attr_key].get(n_gram, default_empty)
         except KeyError:
             raise RequiresTraining("Must call train_from_strings() before using this property")
 
@@ -293,10 +269,10 @@ class DictStorageTokenizer(AbstractTokenizer):
 
 class DictStorageSpellChecker(DictStorageTokenizer, AbstractSpellChecker):
 
-    def _retrieve_token_to_count(self):
-        key = "token_to_count"
+    def get_count_for_token(self, token, default_empty=0):
+        attr_key = "token_to_count"
         try:
-            return self._cls_cache[key]
+            return self._cls_cache[attr_key].get(token, default_empty)
         except KeyError:
             raise RequiresTraining("Must call train_from_strings() before using this property")
 
@@ -329,15 +305,12 @@ class RedisStorageTokenizer(AbstractTokenizer):
         super(RedisStorageTokenizer, self).__init__(**extras)
         self.redis_client = redis_client
 
-    def _retrieve_token_to_full_string(self):
-        token_to_full_string = {}
-        keys = self.redis_client.smembers("token_to_full_string_keys")
-        if not keys:
+    def get_full_strings_for_token(self, token, default_empty=None):
+        key_count = self.redis_client.scard("token_to_full_string_keys")
+        if not key_count:
             raise RequiresTraining("Must call train_from_strings() before using this property")
-        for key in keys:
-            full_strings = self.redis_client.smembers("token:" + key)
-            token_to_full_string[key] = full_strings
-        return token_to_full_string
+        full_strings = self.redis_client.smembers("token:" + token) or default_empty
+        return full_strings
 
     def _store_token_to_full_string(self, token_to_full_string_dict):
         for key, full_strings_set in token_to_full_string_dict.iteritems():
@@ -345,15 +318,11 @@ class RedisStorageTokenizer(AbstractTokenizer):
                 self.redis_client.sadd("token:" + key, full_string)
             self.redis_client.sadd("token_to_full_string_keys", key)
 
-    def _retrieve_n_gram_to_tokens(self):
-        n_gram_to_tokens = {}
-        n_grams = self.redis_client.smembers("n_gram_to_token_key")
-        if not n_grams:
+    def get_tokens_for_n_gram(self, n_gram, default_empty=None):
+        key_count = self.redis_client.scard("n_gram_to_token_key")
+        if not key_count:
             raise RequiresTraining("Must call train_from_strings() before using this property")
-        for n_gram in n_grams:
-            tokens = self.redis_client.smembers("n_gram:" + n_gram)
-            n_gram_to_tokens[n_gram] = tokens
-        return n_gram_to_tokens
+        return self.redis_client.smembers("n_gram:" + n_gram) or default_empty
 
     def _store_n_gram_to_tokens(self, n_gram_to_tokens_dict):
         for n_gram, token_set in n_gram_to_tokens_dict.iteritems():
@@ -380,14 +349,17 @@ class RedisStorageTokenizer(AbstractTokenizer):
 
 class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
 
-    def _retrieve_token_to_count(self):
-        token_to_count = {}
-        tokens = self.redis_client.smembers("token_to_count_key")
-        if not tokens:
+    def get_count_for_token(self, token, default_empty=0):
+        try:
+            int(default_empty)
+        except TypeError:
+            raise TypeError("default_empty must be an int")
+
+        key_count = self.redis_client.scard("token_to_count_key")
+        if not key_count:
             raise RequiresTraining("Must call train_from_strings() before using this property")
-        for token in tokens:
-            token_to_count[token] = self.redis_client.get("count:" + token)
-        return token_to_count
+        count = self.redis_client.get("count:" + token) or default_empty
+        return int(count)
 
     def _store_token_to_count(self, token_to_count_dict):
         for token, count in token_to_count_dict.iteritems():
@@ -405,8 +377,3 @@ class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
 
 class RedisStorageAutoCompleter(RedisStorageSpellChecker, AbstractAutoCompleter):
     pass
-
-
-# get_count_for_token
-# get_full_string_for_token
-# get_token_for_n_gram
