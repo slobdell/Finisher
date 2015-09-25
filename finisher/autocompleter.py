@@ -274,6 +274,12 @@ class DictStorageTokenizer(AbstractTokenizer):
 
 class DictStorageSpellChecker(DictStorageTokenizer, AbstractSpellChecker):
 
+    def get_counts_for_tokens(self, token_list, default_empty=0):
+        attr_key = "token_to_count"
+        if not self._cls_cache[attr_key]:
+            raise RequiresTraining("Must call train_from_strings() before using this property")
+        return {token: self._cls_cache[attr_key].get(token, default_empty) for token in token_list}
+
     def get_count_for_token(self, token, default_empty=0):
         attr_key = "token_to_count"
         try:
