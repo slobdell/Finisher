@@ -74,8 +74,9 @@ class AbstractSpellChecker(AbstractTokenizer):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, typo_deviations=2, **extras):
+    def __init__(self, typo_deviations=2, max_word_length=10, **extras):
         self.typo_deviations = typo_deviations
+        self.max_word_length = max_word_length
         super(AbstractSpellChecker, self).__init__(**extras)
 
     def _to_alpha_words_list(self, text):
@@ -113,6 +114,8 @@ class AbstractSpellChecker(AbstractTokenizer):
         return set(deletes + transposes + replaces + inserts)
 
     def _extended_typos(self, word):
+        if len(word) >= self.max_word_length:
+            return set()
         deviations = self._possible_typos(word)
         all_deviations = set() | deviations
         for _ in xrange(self.typo_deviations - 1):
