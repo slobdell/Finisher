@@ -59,7 +59,7 @@ class AbstractTokenizer(BaseObject):
             alpha_numeric_input_string = self._to_alpha_numeric(input_string)
             tokens = alpha_numeric_input_string.split()
             for token in tokens:
-                token_to_full_string[token].add(input_string.lower())
+                token_to_full_string[token].add(input_string)
                 if len(token) < self.min_n_gram_size:
                     n_gram_to_tokens[token].add(token)
                 for string_size in xrange(self.min_n_gram_size, len(token) + 1):

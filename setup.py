@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='finisher',
-    version="0.1.4",
+    version="0.1.5",
     url='https://github.com/slobdell/Finisher',
     author="Scott Lobdell",
     author_email="scott.lobdell@gmail.com",
