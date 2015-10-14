@@ -37,7 +37,7 @@ class TestAutoCompleter(unittest.TestCase):
             "hello world",
         ])
         strings_for_hello = DictStorageTokenizer(process_cache).get_full_strings_for_token("hello")
-        self.assertEqual(strings_for_hello, set(['hello commrades', 'hello world']))
+        self.assertEqual(strings_for_hello, set(['hello Commrades', 'hello world']))
 
     def test_train_from_strings_n_gram_to_tokens(self):
         """ Verifies that n grams map to tokens. """
@@ -90,7 +90,7 @@ class TestAutoCompleter(unittest.TestCase):
         guessed_phrases = DictStorageAutoCompleter(process_cache).guess_full_strings(["hello", "world"])
         self.assertEqual(
             guessed_phrases,
-            ['hey there world', 'hello commrades']
+            ['hey there world', 'hello Commrades']
         )
         guessed_phrases = DictStorageAutoCompleter(process_cache).guess_full_strings(["nothing", "in", "list"])
         self.assertEqual(guessed_phrases, [])
@@ -124,7 +124,7 @@ class TestAutoCompleter(unittest.TestCase):
             "hello world",
         ])
         strings_for_hello = RedisStorageTokenizer(redis_client).get_full_strings_for_token("hello")
-        self.assertEqual(strings_for_hello, set(['hello commrades', 'hello world']))
+        self.assertEqual(strings_for_hello, set(['hello Commrades', 'hello world']))
 
     def test_redis_spellchecker(self):
         """ Verifies that Redis storage maintains existing logic. """
@@ -150,7 +150,7 @@ class TestAutoCompleter(unittest.TestCase):
         guessed_phrases = RedisStorageAutoCompleter(redis_client).guess_full_strings(["hello", "world"])
         self.assertEqual(
             guessed_phrases,
-            ['hey there world', 'hello commrades']
+            ['hey there world', 'hello Commrades']
         )
 
     def test_integration(self):
@@ -216,7 +216,7 @@ class TestAutoCompleter(unittest.TestCase):
         word_list = [
             "octopus",
         ]
-        RedisStorageAutoCompleter(redis_client).train_from_strings(word_list)
+        RedisStorageAutoCompleter(redis_client, use_pipeline=False).train_from_strings(word_list)
 
         word_list = [
             "rabbit",
@@ -227,6 +227,7 @@ class TestAutoCompleter(unittest.TestCase):
         self.assertEqual(corrected_tokens, ["octopus", "rabbit"])
 
         guessed_phrases = RedisStorageAutoCompleter(
-            redis_client
+            redis_client,
+            use_pipeline=False
         ).guess_full_strings(corrected_tokens)
         self.assertEqual(guessed_phrases, ['octopus', 'rabbit'])

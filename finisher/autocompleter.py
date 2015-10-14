@@ -309,9 +309,15 @@ class DictStorageAutoCompleter(DictStorageSpellChecker, AbstractAutoCompleter):
 
 class RedisStorageTokenizer(AbstractTokenizer):
 
-    def __init__(self, redis_client, **extras):
+    def __init__(self, redis_client, use_pipeline=True, **extras):
         super(RedisStorageTokenizer, self).__init__(**extras)
         self.redis_client = redis_client
+        self.use_pipeline = use_pipeline
+
+    def get_client(self):
+        if self.use_pipeline:
+            return self.redis_client.pipeline()
+        return self.redis_client
 
     def get_full_strings_for_token(self, token, default_empty=None):
         key_count = self.redis_client.scard("token_to_full_string_keys")
@@ -321,12 +327,13 @@ class RedisStorageTokenizer(AbstractTokenizer):
         return full_strings
 
     def _store_token_to_full_string(self, token_to_full_string_dict):
-        pipeline = self.redis_client.pipeline()
+        client = self.get_client()
         for key, full_strings_set in token_to_full_string_dict.iteritems():
             for full_string in full_strings_set:
-                pipeline.sadd("token:" + key, full_string)
-            pipeline.sadd("token_to_full_string_keys", key)
-        pipeline.execute()
+                client.sadd("token:" + key, full_string)
+            client.sadd("token_to_full_string_keys", key)
+        if self.use_pipeline:
+            client.execute()
 
     def get_tokens_for_n_gram(self, n_gram, default_empty=None):
         key_count = self.redis_client.scard("n_gram_to_token_key")
@@ -335,12 +342,13 @@ class RedisStorageTokenizer(AbstractTokenizer):
         return self.redis_client.smembers("n_gram:" + n_gram) or default_empty
 
     def _store_n_gram_to_tokens(self, n_gram_to_tokens_dict):
-        pipeline = self.redis_client.pipeline()
+        client = self.get_client()
         for n_gram, token_set in n_gram_to_tokens_dict.iteritems():
             for token in token_set:
-                pipeline.sadd("n_gram:" + n_gram, token)
-            pipeline.sadd("n_gram_to_token_key", n_gram)
-        pipeline.execute()
+                client.sadd("n_gram:" + n_gram, token)
+            client.sadd("n_gram_to_token_key", n_gram)
+        if self.use_pipeline:
+            client.execute()
 
     def _clear_tokenizer_storage(self):
         self._clear_token_to_full_strings()
@@ -375,7 +383,12 @@ class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
         values = self.redis_client.mget(keys)
         token_to_count = {}
         for index, token in enumerate(listified_tokens):
-            redis_value = int(values[index] or 0)
+
+            if index >= len(values):
+                # edge case for certain redis wrappers apparently
+                redis_value = 0
+            else:
+                redis_value = int(values[index] or 0)
             token_to_count[token] = redis_value
         return token_to_count
 
@@ -392,12 +405,13 @@ class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
         return int(count)
 
     def _store_token_to_count(self, token_to_count_dict):
-        pipeline = self.redis_client.pipeline()
+        client = self.get_client()
         for token, count in token_to_count_dict.iteritems():
             count_key = "count:" + token
-            pipeline.incr(count_key, count)
-            pipeline.sadd("token_to_count_key", token)
-        pipeline.execute()
+            client.incr(count_key, count)
+            client.sadd("token_to_count_key", token)
+        if self.use_pipeline:
+            client.execute()
 
     def _clear_spellcheck_storage(self):
         tokens = self.redis_client.smembers("token_to_count_key")
