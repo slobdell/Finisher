@@ -14,7 +14,7 @@ setup(
     license="MIT",
     packages=find_packages(exclude=[]),
     include_package_data=True,
-    install_requires=[],
+    install_requires=["redis"],
     extras_require={},
     classifiers=[
         'Programming Language :: Python :: 2.7',
