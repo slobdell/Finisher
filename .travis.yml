@@ -1,0 +1,21 @@
+language: python
+
+python:
+  - "2.6"
+  - "2.7"
+  - "pypy"
+  - "3.3"
+  - "3.4"
+
+install:
+  - python setup.py install --quiet
+
+script:
+  - nosetests --with-coverage --cover-package=finisher
+
+after_success:
+  - pip install --quiet coveralls
+  - coveralls
+
+services:
+  - redis-server
