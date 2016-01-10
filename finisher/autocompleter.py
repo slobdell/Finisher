@@ -3,6 +3,13 @@ from abc import abstractmethod
 from collections import Counter, defaultdict
 import re
 
+try:
+    xrange
+    range = xrange
+    iteritems = lambda d: d.iteritems()
+except NameError:
+    iteritems = lambda d: d.items()
+
 
 class RequiresTraining(Exception):
     """ Raised when training is required. """
@@ -62,7 +69,7 @@ class AbstractTokenizer(BaseObject):
                 token_to_full_string[token].add(input_string)
                 if len(token) < self.min_n_gram_size:
                     n_gram_to_tokens[token].add(token)
-                for string_size in xrange(self.min_n_gram_size, len(token) + 1):
+                for string_size in range(self.min_n_gram_size, len(token) + 1):
                     n_gram = token[:string_size]
                     n_gram_to_tokens[n_gram].add(token)
 
@@ -118,7 +125,7 @@ class AbstractSpellChecker(AbstractTokenizer):
             return set()
         deviations = self._possible_typos(word)
         all_deviations = set() | deviations
-        for _ in xrange(self.typo_deviations - 1):
+        for _ in range(self.typo_deviations - 1):
             deviations = \
                 {item for deviation in deviations for item in self._possible_typos(deviation)}
             all_deviations |= deviations
@@ -217,8 +224,8 @@ class AbstractAutoCompleter(AbstractSpellChecker):
         real_tokens = self._get_real_tokens_from_possible_n_grams(token_list)
         full_string__scores = self._get_scored_strings_uncollapsed(real_tokens)
         collapsed_string_to_score = self._combined_scores(full_string__scores, len(token_list))
-        full_string__scores = collapsed_string_to_score.items()
-        full_string__scores.sort(key=lambda t: t[1], reverse=True)
+        full_string__scores = sorted(iteritems(collapsed_string_to_score),
+                                     key=lambda t: t[1], reverse=True)
         return self._filtered_results(full_string__scores)
 
 
@@ -240,7 +247,7 @@ class DictStorageTokenizer(AbstractTokenizer):
         if attr_key not in self._cls_cache:
             self._cls_cache[attr_key] = token_to_full_string_dict
         else:
-            for token, full_string_set in token_to_full_string_dict.iteritems():
+            for token, full_string_set in iteritems(token_to_full_string_dict):
                 try:
                     self._cls_cache[attr_key][token] |= full_string_set
                 except KeyError:
@@ -258,16 +265,14 @@ class DictStorageTokenizer(AbstractTokenizer):
         if attr_key not in self._cls_cache:
             self._cls_cache[attr_key] = n_gram_to_tokens_dict
         else:
-            for n_gram, token_set in n_gram_to_tokens_dict.iteritems():
+            for n_gram, token_set in iteritems(n_gram_to_tokens_dict):
                 try:
                     self._cls_cache[attr_key][n_gram] |= token_set
                 except KeyError:
                     self._cls_cache[attr_key][n_gram] = token_set
 
     def _clear_tokenizer_storage(self):
-        for key in self._cls_cache.keys():
-            del self._cls_cache[key]
-
+        self._cls_cache.clear()
 
 class DictStorageSpellChecker(DictStorageTokenizer, AbstractSpellChecker):
 
@@ -289,7 +294,7 @@ class DictStorageSpellChecker(DictStorageTokenizer, AbstractSpellChecker):
         if attr_key not in self._cls_cache:
             self._cls_cache[attr_key] = token_to_count_dict
         else:
-            for token, count in token_to_count_dict.iteritems():
+            for token, count in iteritems(token_to_count_dict):
                 try:
                     self._cls_cache[attr_key][token] += count
                 except KeyError:
@@ -320,15 +325,19 @@ class RedisStorageTokenizer(AbstractTokenizer):
         return self.redis_client
 
     def get_full_strings_for_token(self, token, default_empty=None):
+        try:
+            token = token.encode("utf-8")
+        except AttributeError:
+            pass
         key_count = self.redis_client.scard("token_to_full_string_keys")
         if not key_count:
             raise RequiresTraining("Must call train_from_strings() before using this property")
-        full_strings = self.redis_client.smembers("token:" + token) or default_empty
-        return full_strings
+        full_strings = self.redis_client.smembers(b"token:" + token) or default_empty
+        return {s.decode("utf-8") for s in full_strings}
 
     def _store_token_to_full_string(self, token_to_full_string_dict):
         client = self.get_client()
-        for key, full_strings_set in token_to_full_string_dict.iteritems():
+        for key, full_strings_set in iteritems(token_to_full_string_dict):
             for full_string in full_strings_set:
                 client.sadd("token:" + key, full_string)
             client.sadd("token_to_full_string_keys", key)
@@ -343,7 +352,7 @@ class RedisStorageTokenizer(AbstractTokenizer):
 
     def _store_n_gram_to_tokens(self, n_gram_to_tokens_dict):
         client = self.get_client()
-        for n_gram, token_set in n_gram_to_tokens_dict.iteritems():
+        for n_gram, token_set in iteritems(n_gram_to_tokens_dict):
             for token in token_set:
                 client.sadd("n_gram:" + n_gram, token)
             client.sadd("n_gram_to_token_key", n_gram)
@@ -357,13 +366,13 @@ class RedisStorageTokenizer(AbstractTokenizer):
     def _clear_token_to_full_strings(self):
         token_keys = self.redis_client.smembers("token_to_full_string_keys")
         for key in token_keys:
-            self.redis_client.expire("token:" + key, 0)
+            self.redis_client.expire(b"token:" + key, 0)
         self.redis_client.expire("token_to_full_string_keys", 0)
 
     def _clear_n_gram_to_tokens(self):
         n_gram_keys = self.redis_client.smembers("n_gram_to_token_key")
         for key in n_gram_keys:
-            self.redis_client.expire("n_gram:" + key, 0)
+            self.redis_client.expire(b"n_gram:" + key, 0)
         self.redis_client.expire("n_gram_to_token_key", 0)
 
 
@@ -406,7 +415,7 @@ class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
 
     def _store_token_to_count(self, token_to_count_dict):
         client = self.get_client()
-        for token, count in token_to_count_dict.iteritems():
+        for token, count in iteritems(token_to_count_dict):
             count_key = "count:" + token
             client.incr(count_key, count)
             client.sadd("token_to_count_key", token)
@@ -416,7 +425,7 @@ class RedisStorageSpellChecker(RedisStorageTokenizer, AbstractSpellChecker):
     def _clear_spellcheck_storage(self):
         tokens = self.redis_client.smembers("token_to_count_key")
         for token in tokens:
-            self.redis_client.expire("count:" + token, 0)
+            self.redis_client.expire(b"count:" + token, 0)
         self.redis_client.expire("token_to_count_key", 0)
 
 

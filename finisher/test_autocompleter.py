@@ -2,7 +2,7 @@ import unittest
 
 import redis
 
-from autocompleter import (
+from .autocompleter import (
     DictStorageAutoCompleter,
     DictStorageSpellChecker,
     DictStorageTokenizer,
@@ -226,8 +226,7 @@ class TestAutoCompleter(unittest.TestCase):
         corrected_tokens = RedisStorageAutoCompleter(redis_client).correct_phrase("octipus rbbit")
         self.assertEqual(corrected_tokens, ["octopus", "rabbit"])
 
-        guessed_phrases = RedisStorageAutoCompleter(
-            redis_client,
-            use_pipeline=False
-        ).guess_full_strings(corrected_tokens)
+        guessed_phrases = (RedisStorageAutoCompleter(redis_client,
+                                                     use_pipeline=False)
+                           .guess_full_strings(corrected_tokens))
         self.assertEqual(guessed_phrases, ['octopus', 'rabbit'])
