@@ -285,6 +285,7 @@ class DictStorageTokenizer(AbstractTokenizer):
     def _clear_tokenizer_storage(self):
         self._cls_cache.clear()
 
+
 class DictStorageSpellChecker(DictStorageTokenizer, AbstractSpellChecker):
 
     def get_counts_for_tokens(self, token_list, default_empty=0):
@@ -386,7 +387,10 @@ class RedisStorageTokenizer(AbstractTokenizer):
     def _clear_n_gram_to_tokens(self):
         n_gram_keys = self.redis_client.smembers("n_gram_to_token_key")
         for key in n_gram_keys:
-            self.redis_client.expire(b"n_gram:" + key, 0)
+            try:
+                self.redis_client.expire(b"n_gram:" + key, 0)
+            except UnicodeDecodeError:
+                continue
         self.redis_client.expire("n_gram_to_token_key", 0)
 
 
