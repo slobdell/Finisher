@@ -377,7 +377,10 @@ class RedisStorageTokenizer(AbstractTokenizer):
     def _clear_token_to_full_strings(self):
         token_keys = self.redis_client.smembers("token_to_full_string_keys")
         for key in token_keys:
-            self.redis_client.expire(b"token:" + key, 0)
+            try:
+                self.redis_client.expire(b"token:" + key, 0)
+            except UnicodeDecodeError:
+                continue
         self.redis_client.expire("token_to_full_string_keys", 0)
 
     def _clear_n_gram_to_tokens(self):
