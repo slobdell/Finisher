@@ -218,10 +218,21 @@ class AbstractAutoCompleter(AbstractSpellChecker):
             min_possibles = max_possibles[:self.min_results]
         return [tuple_obj[0] for tuple_obj in min_possibles]
 
+    def _cleaned_tokens(self, token_list):
+        cleaned_tokens = []
+        for token in token_list:
+            try:
+                unicode(token)
+            except UnicodeDecodeError:
+                continue
+            cleaned_tokens.append(token)
+        return cleaned_tokens
+
     def guess_full_strings(self, token_list):
         """ Given an input list of tokens, returns an ordered list of phrases
         that most likely aligns with the input. """
         real_tokens = self._get_real_tokens_from_possible_n_grams(token_list)
+        real_tokens = self._cleaned_tokens(real_tokens)
         full_string__scores = self._get_scored_strings_uncollapsed(real_tokens)
         collapsed_string_to_score = self._combined_scores(full_string__scores, len(token_list))
         full_string__scores = sorted(iteritems(collapsed_string_to_score),
