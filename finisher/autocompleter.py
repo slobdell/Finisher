@@ -183,13 +183,26 @@ class AbstractAutoCompleter(AbstractSpellChecker):
         return real_tokens
 
     def _get_scored_strings_uncollapsed(self, real_tokens):
-        full_string__scores = []
-        for token in real_tokens:
-            possible_full_strings = self.get_full_strings_for_token(token, set())
-            for full_string in possible_full_strings:
-                score = float(len(token)) / len(full_string.replace(" ", ""))
-                full_string__scores.append((full_string, score))
-        return full_string__scores
+        all_full_strings = set.union(*[self.get_full_strings_for_token(token, set()) for token in real_tokens] + [set()])
+
+        def _get_score(full_string):
+            exact_tokens_matched = len(real_tokens) - len(set(real_tokens) - set(full_string.split(" ")))
+            percent_match_tokens = float(exact_tokens_matched) / len(real_tokens)
+
+            all_token_characters = list("".join(real_tokens))
+            all_string_characters = list(full_string.replace(" ", ""))
+            filtered_string = all_string_characters
+            for match_character in all_token_characters:
+                for outer_index, cursor_character in enumerate(filtered_string):
+                    if cursor_character == match_character:
+                        filtered_string = "".join([char for index, char in enumerate(filtered_string) if index != outer_index])
+                        break
+            characters_consumed = len(all_string_characters) - len(filtered_string)
+            percent_match_raw = float(characters_consumed) / len(all_string_characters)
+            return 0.66 * percent_match_tokens + 0.333 * percent_match_raw
+
+        full_string__scores = [(s, _get_score(s)) for s in all_full_strings]
+        return sorted(full_string__scores, key=lambda t: t[1], reverse=True)
 
     def _combined_scores(self, full_string__scores, num_tokens):
         collapsed_string_to_score = defaultdict(int)

@@ -17,6 +17,9 @@ process_cache = {}
 
 class TestAutoCompleter(unittest.TestCase):
 
+    def setUp(self):
+        super(TestAutoCompleter, self).setUp()
+
     def tearDown(self):
         super(TestAutoCompleter, self).tearDown()
 
@@ -90,7 +93,7 @@ class TestAutoCompleter(unittest.TestCase):
         guessed_phrases = DictStorageAutoCompleter(process_cache).guess_full_strings(["hello", "world"])
         self.assertEqual(
             guessed_phrases,
-            ['hey there world', 'hello Commrades']
+            ['hello Commrades', 'hey there world']
         )
         guessed_phrases = DictStorageAutoCompleter(process_cache).guess_full_strings(["nothing", "in", "list"])
         self.assertEqual(guessed_phrases, [])
@@ -150,7 +153,7 @@ class TestAutoCompleter(unittest.TestCase):
         guessed_phrases = RedisStorageAutoCompleter(redis_client).guess_full_strings(["hello", "world"])
         self.assertEqual(
             guessed_phrases,
-            ['hey there world', 'hello Commrades']
+            ['hello Commrades', 'hey there world']
         )
 
     def test_integration(self):
@@ -230,3 +233,26 @@ class TestAutoCompleter(unittest.TestCase):
                                                      use_pipeline=False)
                            .guess_full_strings(corrected_tokens))
         self.assertEqual(guessed_phrases, ['octopus', 'rabbit'])
+
+    def test_something(self):
+        """ Verifies that exact keyword matches are weighted more
+        heavily than partial matches. """
+        word_list = [
+            "these hardcore words shall blow your mind",
+            "the whale is awesome",
+            "I am on the bart train right now",
+            "how else can I come up with good test sentences",
+            "stream of consciousness will generate great sentences",
+            "the lady next to me on the train speaks loudly",
+            "passing oakland right now",
+            "the sky is blue",
+            "these nuts",
+            "the nu blueberries are amazing",
+            "the nu",
+        ]
+        DictStorageTokenizer(process_cache).train_from_strings(word_list)
+        guessed_phrases = DictStorageAutoCompleter(
+            process_cache
+        ).guess_full_strings(["the", "nu"])
+        best_search_result = guessed_phrases[0]
+        self.assertIn("these", best_search_result)
